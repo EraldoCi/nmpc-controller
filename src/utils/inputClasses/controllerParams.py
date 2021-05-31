@@ -7,13 +7,13 @@ class ControllerParams(NamedTuple):
         max_velocity: maximu robot speeed.
         whells_distance: distância entre as rodas.
         
-        predict_horz: Horizonte de predição.
-        predict_horz_end: final do horizonte de predição.
-        control_horz: Horizonte de controle.
+        predict_horz: Horizonte de predição (N1).
+        predict_horz_end: final do horizonte de predição (N2).
+        control_horz: Horizonte de controle (Nu).
 
-        gain_xy_error: ganho para o erro x e y.
-        gain_theta_error: ganho para o erro em Theta.
-        gain_delta_control: ganho para variação de controle.
+        gain_xy_error: ganho para o erro x e y (L1).
+        gain_theta_error: ganho para o erro em Theta (L2).
+        gain_delta_control: ganho para variação de controle (L3).
 
         eta: critério de parada
         max_iterations: número máximo de iterações.

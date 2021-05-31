@@ -106,5 +106,6 @@ if __name__ == '__main__':
         wrefA = 0.5
     )
     nmpc = NMPC_Controller(input=inputRef)
+    # nmpc.
     # print(nmpc.__str__())
     
