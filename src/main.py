@@ -9,7 +9,7 @@ import numpy as np
 
 from aStar import AStarPlanner 
 from nmpcController import NMPC_Controller
-from utils.controllerInput import ControllerInput
+from utils.inputClasses import ControllerInput
 
 '''
 1. Gerar o caminho com o aStar
@@ -31,8 +31,8 @@ class Node:
         rate = rospy.Rate(2)
 
         move = Twist() # defining the way we can allocate the values
-        move.linear.x = 0.9 # allocating the values in x direction - linear
-        move.angular.z = 0.2  # allocating the values in z direction - angular
+        move.linear.x = 0.5 # allocating the values in x direction - linear
+        move.angular.z = 0.5  # allocating the values in z direction - angular
 
         return pub, rate, move
 
