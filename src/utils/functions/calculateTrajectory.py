@@ -7,17 +7,20 @@ PI = math.pi
 
 '''
 lTi: .
-SRx: .
-SRy: .
-SRt: .
-trajX: X reference position.
-trajY: Y reference position.
-trajTeta: Theta reference.
-V: .
-W: .
-N2: .
-trajXp: .
-trajYp: .
+Rx: Robot X position state.
+Ry: Robot Y position state.
+Rt: Robot Theta state.
+trajX: X previous position.
+trajY: Y previous position.
+trajTeta: Theta previous reference.
+V: previous linear velocity reference.
+W: previous angular velocity reference.
+N2: prediction horizon end (?).
+trajXp: X reference position.
+trajYp: Y reference position.
+
+[tPx, tPY, tPTheta] = calcRefTraj(lTi, Rsx, Rsy, Rst, xrefA, yrefA, tetarefA, ...
+		vrefA, wrefA, N2, xref, yref);
 '''
 
 def calculate_mini_trajectory(lTi, SRx, SRy, SRt, trajX, trajY, trajTeta, V, W, N2, trajXp, trajYp):
