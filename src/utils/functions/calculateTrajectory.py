@@ -2,11 +2,11 @@ import numpy as np
 import math
 
 from utils.functions import angleDif
+from utils.inputClasses import TrajectoryInput
 
 PI = math.pi
 
 '''
-lTi: .
 Rx: Robot X position state.
 Ry: Robot Y position state.
 Rt: Robot Theta state.
@@ -15,7 +15,7 @@ trajY: Y previous position.
 trajTeta: Theta previous reference.
 V: previous linear velocity reference.
 W: previous angular velocity reference.
-N2: prediction horizon end (?).
+N2: prediction horizon end (10).
 trajXp: X reference position.
 trajYp: Y reference position.
 
@@ -23,10 +23,10 @@ trajYp: Y reference position.
 		vrefA, wrefA, N2, xref, yref);
 '''
 
-def calculate_mini_trajectory(lTi, SRx, SRy, SRt, trajX, trajY, trajTeta, V, W, N2, trajXp, trajYp):
-    '''
-    Calculates the Reference trajectory
-    '''
+def calculate_mini_trajectory( input_params: TrajectoryInput):
+    SRx, SRy, SRt, trajX, trajY, trajTeta, V, W, N2, trajXp, trajYp = input_params
+
+    iteration = 0
     N = 2001
     i = 1
     deltaD = V*0.04 # 0.1 para Pioneer e 0.04 para Turtlebot
@@ -59,7 +59,7 @@ def calculate_mini_trajectory(lTi, SRx, SRy, SRt, trajX, trajY, trajTeta, V, W, 
     #build new trajectory
     for j in range(2, N2): # j=2:1:N2+1
         #reached the end of the trajectory
-        if lTi >= N-1 :
+        if iteration >= N-1 :
             trajPX[j] = trajX
             trajPY[j] = trajY
             trajPTeta[j] = trajTeta
@@ -73,7 +73,7 @@ def calculate_mini_trajectory(lTi, SRx, SRy, SRt, trajX, trajY, trajTeta, V, W, 
                 
             #change segment of the main trajectory that's being tracked
             if dTotal >= dSegments :
-                lTi = lTi + 1
+                iteration += 1
                 teta = np.arctan2(trajYp-trajY, trajXp-trajX)
                 segmentSize = math.sqrt( (trajXp-trajX)**2 + (trajYp-trajY)**2 ) 
 
