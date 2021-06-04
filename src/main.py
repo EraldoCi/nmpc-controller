@@ -19,7 +19,7 @@ from utils.test.coordinates import new_coordinates
 '''
 
 class Node:
-    def __init__(self) -> None:
+    def __init__(self):
         """
         Initialze a ros node
         """
@@ -27,18 +27,19 @@ class Node:
         # Node creation
         rospy.init_node('NMPC_Robot')
         # Publisher which will publish to the topic 'cmd_vel_mux/input/navi'
-        self.velocity_publisher = rospy.Publisher('/cmd_vel_mux/input/navi', Twist, queue_size=1)
+        self.velocity_publisher = rospy.Publisher('/cmd_vel_mux/input', Twist, queue_size=1)
 
-        self.pose_subscriber = rospy.Subscriber('/odom', Odometry, self.update_position)
+        # self.pose_subscriber = rospy.Subscriber('/cmd_vel_mux/input', Pose, self.update_position)
+        # self.pose_subscriber = rospy.Subscriber('/odom', Odometry, self.update_position)
         
         self.pose = Pose()
         self.rate = rospy.Rate(2)
         self.move = Twist()
     
-    '''
+    
     def create_node(self):
-        rospy.init_node(self.node_name)
-        pub = rospy.Publisher(self.topic_name, Twist, queue_size=1)
+        rospy.init_node('NMPC_Robot')
+        pub = rospy.Publisher('/cmd_vel_mux/input', Twist, queue_size=1)
         rate = rospy.Rate(2)
 
         move = Twist() # defining the way we can allocate the values
@@ -46,37 +47,49 @@ class Node:
         move.angular.z = 0.0  # allocating the values in z direction - angular
 
         return pub, rate, move
-    '''
+    
 
-    def update_position(self, data):
-        self.pose = data
-        self.pose.x = round(self.pose.x, 4)
-        self.pose.y = round(self.pose.y, 4)
-        self.pose.theta = round(self.pose.theta, 4)
+    # def update_position(self, data):
+    #     self.pose = data
+    #     self.pose.x = round(self.pose.x, 4)
+    #     self.pose.y = round(self.pose.y, 4)
+    #     self.pose.theta = round(self.pose.theta, 4)
 
-        # rospy.loginfo(f'X position: {data.pose.pose}')
-        rospy.loginfo(f'X position: {self.pose.x}')
+    #     # rospy.loginfo(f'X position: {data.pose.pose}')
+    #     rospy.loginfo(f'X position: {self.pose.x}')
 
 
     def move_to_goal(self):
+        # rospy.Subscriber('/cmd_vel_mux/input', Pose, self.update_position)
+        # rate = rospy.Rate(2)
         # Initialize linear & angular velocities
-        self.move.linear.x = 0
-        self.move.linear.y = 0
-        self.move.linear.z = 0
-        self.move.angular.x = 0
-        self.move.angular.y = 0
-        self.move.angular.z = 0
+        self.move.linear.x = 0.5
+        # self.move.linear.y = 0
+        # self.move.linear.z = 0
+        # self.move.angular.x = 0
+        # self.move.angular.y = 0
+        self.move.angular.z = 0.5
 
         # path iterator
-        index = 0
-        max_iter = len(new_coordinates) - 1
+        # index = 0
+        # max_iter = len(new_coordinates) - 1
 
-        xrefA = new_coordinates[0][index]
-        yrefA = new_coordinates[1][index]
-        thetarefA = self.pose.theta
-        vrefA = self.move.linear.x
-        wrefA = self.move.angular.z
+        # xrefA = new_coordinates[0][index]
+        # yrefA = new_coordinates[1][index]
+        # thetarefA = self.pose.theta
+        # vrefA = self.move.linear.x
+        # wrefA = self.move.angular.z
 
+        # vel_msg = Twist()
+        # vel_msg.linear.x = 0.5
+        # vel_msg.angular.z = 0.5
+        
+        while not rospy.is_shutdown():
+            # self.move.linear.x, self.move.angular.z = 0.5, 0.5
+            self.velocity_publisher.publish(self.move)
+            self.rate.sleep()
+        
+        '''
         while not rospy.is_shutdown() and index < max_iter:
 
             xref = new_coordinates[0][index]
@@ -112,7 +125,8 @@ class Node:
             wrefA = self.move.angular.z
 
             index += 1
-        return
+        '''
+        
 
 '''
 def start_robot():
@@ -155,8 +169,62 @@ def start_robot():
         index += 1
 '''
 
+
+def start():
+    # Node Initialization
+    rospy.init_node('NMPC_Robot')
+    # Publisher
+    pub = rospy.Publisher('cmd_vel_mux/input/navi', Twist, queue_size=10)
+    # rospy.Subscriber('/cmd_vel_mux/input', Pose, update_position)
+    rate = rospy.Rate(2)
+
+    move = Twist()
+    move.linear.x = 0.5
+    move.angular.z = 0.5
+
+    while not rospy.is_shutdown():
+        print(move)
+        pub.publish(move)
+        rate.sleep()
+
+
+
+class Robot_Node():
+    def __init__(self):
+
+        # Publisher
+        self.pub_control = rospy.Publisher('/cmd_vel_mux/input/navi', Twist, queue_size=10)
+
+        # Subscriber
+        rospy.Subscriber('/odom', Odometry, self.update_position)
+        self.rate = rospy.Rate(2)
+
+        self.x = 0
+        self.y = 0
+        self.theta = 0
+    
+    def update_position(self, data):
+        self.x = round(data.pose.pose.position.x, 4)
+        self.y = round(data.pose.pose.position.y, 4)
+        self.theta = round(data.pose.pose.orientation.z, 4)
+
+        rospy.loginfo(f'X position: {self.x}\nY position: {self.y}\nTheta: {self.theta}')
+    
+
+    def move_to_goal(self):
+        move = Twist()
+        move.linear.x = 0.5
+        move.angular.z = 0.5
+
+    
+
+        self.pub_control.publish(move)
+      
+
+
 if __name__ == '__main__':
     print(f'{__file__} start!!')
+
     '''
     start_point_x = 60.0  # [m]
     start_point_y = 40.0  # [m]
@@ -201,6 +269,15 @@ if __name__ == '__main__':
     plt.show()
     '''
 
-    new_robot = Node()
-    new_robot.move_to_goal()
+    # new_robot = Node()
+    # new_robot.move_to_goal()
+
+    # start()
+
+    rospy.init_node('NMPC_Robot')
+    robot_node = Robot_Node()
+
+    while not rospy.is_shutdown():
+        robot_node.move_to_goal()
     
+        rospy.sleep(1)
