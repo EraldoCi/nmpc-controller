@@ -1,7 +1,7 @@
 import numpy as np
 import math
 
-from utils.functions import angleDif
+from .angleDif import angle_difference
 from utils.inputClasses import TrajectoryInput
 
 PI = math.pi
@@ -33,15 +33,15 @@ def calculate_mini_trajectory( input_params: TrajectoryInput):
     deltaW = W*0.04
     dTotal = 0
 
-    trajPX= np.zeros(1, N2+1)
-    trajPY= np.zeros(1, N2+1)
-    trajPTeta= np.zeros(1, N2+1)
+    trajPX= np.zeros(N2)
+    trajPY= np.zeros(N2)
+    trajPTeta= np.zeros(N2)
 
     #angle of current segment to world
     teta = np.arctan2(trajYp-trajY, trajXp-trajX)
 
     #angulo entre a recta e o vector que une o ponto (x1,y1) ao ponto (x3,y3)
-    al = angleDif(trajTeta, SRt) - teta
+    al = angle_difference(trajTeta, SRt) - teta
     d1_3 = math.sqrt( (trajX-SRx)**2 + (trajY-SRy)**2 )
     
     #distancia do ponto (x3,y3) para a linha que passa pelos pontos (x1,y1) e (x2,y2)
@@ -85,7 +85,7 @@ def calculate_mini_trajectory( input_params: TrajectoryInput):
                 dSegments = dSegments + segmentSize
 
     #handle teta references
-    for i in range(0, N2): # ab=1:1:N2
+    for i in range(0, N2-1): # ab=1:1:N2
         if trajPTeta[i] > PI:
             trajPTeta[i] = trajPTeta[i] - 2*PI
 

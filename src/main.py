@@ -1,283 +1,129 @@
 #! /usr/bin/env python
 
+from rosgraph import roslogging
 import rospy
 from geometry_msgs.msg import Twist, Pose
 from nav_msgs.msg import Odometry
-import matplotlib.pyplot as plt
-from PIL import Image, ImageOps
-import numpy as np
 
-from aStar import AStarPlanner 
 from nmpcController import NMPC_Controller
 from utils.inputClasses import ControllerInput
-from utils.test.coordinates import new_coordinates
 
-'''
-1. Gerar o caminho com o aStar
-2. Enviar o array com as coordenadas para o robo
-3. Executar o controle
-'''
+class TurtleBot:
 
-class Node:
     def __init__(self):
-        """
-        Initialze a ros node
-        """
+        # Creates a node with name 'NMPC_Robot' and make sure it is a
+        # unique node (using anonymous=True).
+        rospy.init_node('NMPC_Robot', anonymous=True)
 
-        # Node creation
-        rospy.init_node('NMPC_Robot')
-        # Publisher which will publish to the topic 'cmd_vel_mux/input/navi'
-        self.velocity_publisher = rospy.Publisher('/cmd_vel_mux/input', Twist, queue_size=1)
+        # Publisher which will publish to the topic '/turtle1/cmd_vel'.
+        self.velocity_publisher = rospy.Publisher('/cmd_vel_mux/input/navi',
+                                                  Twist, queue_size=10)
 
-        # self.pose_subscriber = rospy.Subscriber('/cmd_vel_mux/input', Pose, self.update_position)
-        # self.pose_subscriber = rospy.Subscriber('/odom', Odometry, self.update_position)
-        
-        self.pose = Pose()
-        self.rate = rospy.Rate(2)
-        self.move = Twist()
-    
-    
-    def create_node(self):
-        rospy.init_node('NMPC_Robot')
-        pub = rospy.Publisher('/cmd_vel_mux/input', Twist, queue_size=1)
-        rate = rospy.Rate(2)
+        # A subscriber to the topic '/odom'. self.update_pose is called
+        # when a message of type Pose is received.
+        self.pose_subscriber = rospy.Subscriber('/odom',
+                                                Odometry, self.update_pose)
 
-        move = Twist() # defining the way we can allocate the values
-        move.linear.x = 0.0 # allocating the values in x direction - linear
-        move.angular.z = 0.0  # allocating the values in z direction - angular
+        # self.pose = Pose()
+        self.x_position = 0.0
+        self.y_position = 0.0
+        self.theta = 0.0
+        self.rate = rospy.Rate(1)
 
-        return pub, rate, move
-    
-
-    # def update_position(self, data):
-    #     self.pose = data
-    #     self.pose.x = round(self.pose.x, 4)
-    #     self.pose.y = round(self.pose.y, 4)
-    #     self.pose.theta = round(self.pose.theta, 4)
-
-    #     # rospy.loginfo(f'X position: {data.pose.pose}')
-    #     rospy.loginfo(f'X position: {self.pose.x}')
+    def update_pose(self, data):
+        """Callback function which is called when a new message of type Pose is
+        received by the subscriber."""
+        # self.pose = data
+        self.x_position = round(data.pose.pose.position.x, 4)
+        self.y_position = round(data.pose.pose.position.y, 4)
+        self.theta = round(data.pose.pose.orientation.z, 4)
+        # rospy.loginfo(data)
 
 
-    def move_to_goal(self):
-        # rospy.Subscriber('/cmd_vel_mux/input', Pose, self.update_position)
-        # rate = rospy.Rate(2)
-        # Initialize linear & angular velocities
-        self.move.linear.x = 0.5
-        # self.move.linear.y = 0
-        # self.move.linear.z = 0
-        # self.move.angular.x = 0
-        # self.move.angular.y = 0
-        self.move.angular.z = 0.5
+    def move2goal(self):
+        """Moves the turtle to the goal."""
+        vel_msg = Twist()
 
-        # path iterator
-        # index = 0
-        # max_iter = len(new_coordinates) - 1
+        # Linear velocity in the x-axis.
+        vel_msg.linear.x = 0.5
+        vel_msg.linear.y = 0
+        vel_msg.linear.z = 0
 
-        # xrefA = new_coordinates[0][index]
-        # yrefA = new_coordinates[1][index]
-        # thetarefA = self.pose.theta
-        # vrefA = self.move.linear.x
-        # wrefA = self.move.angular.z
+        # Angular velocity in the z-axis.
+        vel_msg.angular.x = 0
+        vel_msg.angular.y = 0
+        vel_msg.angular.z = -0.5
 
-        # vel_msg = Twist()
-        # vel_msg.linear.x = 0.5
-        # vel_msg.angular.z = 0.5
-        
+        # Starting point reference
+        x_ref = -1.5
+        y_ref = -2.0
+
+        # Previous Reference
+        x_prev_ref = x_ref
+        y_prev_ref = y_ref
+        theta_prev_ref = self.theta
+        vrefA = vel_msg.linear.x
+        wrefA = vel_msg.angular.z
+
         while not rospy.is_shutdown():
-            # self.move.linear.x, self.move.angular.z = 0.5, 0.5
-            self.velocity_publisher.publish(self.move)
-            self.rate.sleep()
-        
-        '''
-        while not rospy.is_shutdown() and index < max_iter:
-
-            xref = new_coordinates[0][index]
-            yref = new_coordinates[1][index]
-
+            
             inputRef = ControllerInput(
-                xref = xref,
-                yref = yref,
-                RstateX = self.pose.x,
-                RstateY = self.pose.y,
-                RstateTheta = self.pose.theta,
-                RstateVelocity = self.move.linear.x,
-                RstateW = self.move.angular.z,
-                xrefA = xrefA,
-                yrefA = yrefA,
-                thetarefA = thetarefA,
+                xref = x_ref,
+                yref = y_ref,
+                RstateX = self.x_position,
+                RstateY = self.y_position,
+                RstateTheta = self.theta,
+                RstateVelocity = vel_msg.angular.x,
+                RstateW = vel_msg.angular.z,
+                xrefA = x_prev_ref,
+                yrefA = y_prev_ref,
+                thetarefA = theta_prev_ref,
                 vrefA = vrefA,
                 wrefA = wrefA
             )
-            nmpc = NMPC_Controller(input=inputRef)
-            nmpc.init_optmizer()
+            # print(inputRef)
+
+            nmpc = NMPC_Controller(inputRef)
+            # rospy.loginfo(nmpc.__str__())
             
-            self.move.linear.x, self.move.angular.z = nmpc.start_optmizer()
+            # Publishing our vel_msg
+            self.velocity_publisher.publish(vel_msg)
             
-            self.velocity_publisher.publish(self.move)
+            new_v, new_w = nmpc.start_optmizer()
+            # rospy.loginfo(new_v, new_w)
+            print(new_v, new_w)
+
+            x_prev_ref = x_ref
+            y_prev_ref = y_ref
+            theta_prev_ref = self.theta
+            vrefA = vel_msg.linear.x
+            wrefA = vel_msg.angular.z
+            
+            '''
+            Loggin
+            '''
+            # rospy.loginfo(f'X: {self.x_position}, Y: {self.y_position}, THETA: {self.theta}')
+            
+            # Publish at the desired rate.
             self.rate.sleep()
 
-            # Previous params
-            xrefA = xref
-            yrefA = yref
-            thetarefA = self.pose.theta
-            vrefA = self.move.linear.x
-            wrefA = self.move.angular.z
+        rospy.spin()
 
-            index += 1
-        '''
-        
+# rospy.init_node('NMPC_Robot')
+# pub = rospy.Publisher('/cmd_vel_mux/input/navi', Twist, queue_size=1)
+# rospy.Subscriber('/odom', Odometry, update_position)
+# rate = rospy.Rate(2)
+# move = Twist() 
+# move.linear.x = 0.5 
+# move.angular.z = 0.5
 
-'''
-def start_robot():
-    robot_node = Node('NMPC_Robot', '/cmd_vel_mux/input/navi')
-    pub, rate, moviment = robot_node.create_node()
-
-    rospy.Subscriber('/odom', Odometry, robot_node.callback_Actual_Position)
-
-    Vout_MPC, Wout_MPC = nmpc.start_optmizer()
-
-    index = 0
-    # Start Control
-    while not rospy.is_shutdown():
-        
-        xref = new_coordinates[0][index]
-        yref = new_coordinates[1][index]
-
-        inputRef = ControllerInput(
-            xref = xref,
-            yref = yref,
-            RstateX = 0.5,
-            RstateY = 0.5,
-            RstateTheta = 0.5,
-            RstateVelocity = 0.5,
-            RstateW = 0.5,
-            xrefA = 0.5,
-            yrefA = 0.5,
-            thetarefA = 0.5,
-            vrefA = 0.5,
-            wrefA = 0.5
-        )
-        nmpc = NMPC_Controller(input=inputRef)
-        nmpc.init_optmizer()
-
-        pub.publish(moviment)
-        rospy.loginfo(f'Speed: {moviment.linear}')
-        # print(f'\nLinear speed: {moviment.linear.x}')
-        rate.sleep()
-
-        index += 1
-'''
-
-
-def start():
-    # Node Initialization
-    rospy.init_node('NMPC_Robot')
-    # Publisher
-    pub = rospy.Publisher('cmd_vel_mux/input/navi', Twist, queue_size=10)
-    # rospy.Subscriber('/cmd_vel_mux/input', Pose, update_position)
-    rate = rospy.Rate(2)
-
-    move = Twist()
-    move.linear.x = 0.5
-    move.angular.z = 0.5
-
-    while not rospy.is_shutdown():
-        print(move)
-        pub.publish(move)
-        rate.sleep()
-
-
-
-class Robot_Node():
-    def __init__(self):
-
-        # Publisher
-        self.pub_control = rospy.Publisher('/cmd_vel_mux/input/navi', Twist, queue_size=10)
-
-        # Subscriber
-        rospy.Subscriber('/odom', Odometry, self.update_position)
-        self.rate = rospy.Rate(2)
-
-        self.x = 0
-        self.y = 0
-        self.theta = 0
-    
-    def update_position(self, data):
-        self.x = round(data.pose.pose.position.x, 4)
-        self.y = round(data.pose.pose.position.y, 4)
-        self.theta = round(data.pose.pose.orientation.z, 4)
-
-        rospy.loginfo(f'X position: {self.x}\nY position: {self.y}\nTheta: {self.theta}')
-    
-
-    def move_to_goal(self):
-        move = Twist()
-        move.linear.x = 0.5
-        move.angular.z = 0.5
-
-    
-
-        self.pub_control.publish(move)
-      
-
+# while not rospy.is_shutdown(): 
+#   pub.publish(move)
+#   rate.sleep()
 
 if __name__ == '__main__':
-    print(f'{__file__} start!!')
-
-    '''
-    start_point_x = 60.0  # [m]
-    start_point_y = 40.0  # [m]
-    final_point_x = 50.0  # [m]
-    final_point_y = 320.0  # [m]
-    grid_size = 3.0  # [m]
-    robot_radius = 1.0  # [m]
-
-    # Read bmp file
-    mapImage = Image.open('/home/gustavo/catkin_workspace/src/src/robotic_part2/assets/mapaexemplo.bmp')
-    imgGray = ImageOps.grayscale(mapImage)
-    mapToArrray = np.array(imgGray)
-
-    height, _  = mapToArrray.shape
-    map_grid = list(mapToArrray)
-
-    new_ox, new_oy = [], []
-
-    # populates X and Y axis
-    for i in range(height-1, 0, -1):
-        for k,j in enumerate(map_grid[i]):
-            if j == 0:
-                # pixel with 0 value means it's an obstacle
-                new_ox.append(i)
-                new_oy.append(k)
-
-    a_star = AStarPlanner(new_ox, new_oy, grid_size, robot_radius)
-    rx, ry = a_star.planning(start_point_x, start_point_y, final_point_x, final_point_y)
-    
-    # Final plot
-    plt.plot(new_ox, new_oy, ".k")
-    plt.plot(start_point_x, start_point_y, "og")
-    plt.plot(final_point_x, final_point_y, "xb")
-    plt.grid(True)
-    plt.axis("equal")
-
-    # new_rx = np.array(rx)/50
-    # new_ry = np.array(ry)/50
-    # print(new_rx, new_ry)
-    plt.plot(rx, ry, "-r")
-    plt.pause(0.001)
-    plt.show()
-    '''
-
-    # new_robot = Node()
-    # new_robot.move_to_goal()
-
-    # start()
-
-    rospy.init_node('NMPC_Robot')
-    robot_node = Robot_Node()
-
-    while not rospy.is_shutdown():
-        robot_node.move_to_goal()
-    
-        rospy.sleep(1)
+    try:
+        turtlebot = TurtleBot()
+        turtlebot.move2goal()
+    except rospy.ROSInterruptException:
+        pass

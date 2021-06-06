@@ -13,7 +13,7 @@ WHEELS_DISTANCE = 0.23 # d
 PREDICT_HORZ = 1 # N1
 PREDICT_HORZ_END = 10 # N2
 CONTROL_HORZ = 2 # Nu
-GAIN_XY_ERROR = 10 # L1
+GAIN_XY_ERROR = 1 # L1
 GAIN_THETA_ERROR = 2.5 # L2
 GAIN_DELTA_ERROR = 0.85 # L3
 ETA = 0.1
@@ -53,12 +53,9 @@ class NMPC_Controller():
         self.wrefA = input
 
         self.Ubest, self.Uref, self.Uaux, self.prediction_model = self.init_predict_model()
-        #   Uref
-        self.actual_cost
-        self.best_cost
 
     def __str__(self):# used for debuging
-        return f'xref:{self.xref}\nyref: {self.yref}'
+        return f'X pose:{self.RstateX}, Y pose: {self.RstateY}'
 
 
     def init_optmizer(self):
@@ -71,9 +68,9 @@ class NMPC_Controller():
         Jgrad_prev: Vetor de passos do Gradiente Anterior de J 4x1.
         '''
         # alpha = alpha
-        Jsteps = np.zeros((1, PREDICT_HORZ*4))
-        Jgrad = np.zeros((1, PREDICT_HORZ*2))
-        Jgrad_prev = np.zeros((1, PREDICT_HORZ*2))
+        Jsteps = np.zeros((1, CONTROL_HORZ*4))
+        Jgrad = np.zeros((1, CONTROL_HORZ*2))
+        Jgrad_prev = np.zeros((1, CONTROL_HORZ*2))
 
         return Jsteps, Jgrad, Jgrad_prev
 
@@ -87,9 +84,9 @@ class NMPC_Controller():
         Uaux: Saída do controle auxiliar que vai servir para o otimizador.
         SinRob: .
         '''
-        Ubest = np.zeros((2,PREDICT_HORZ)) 
-        Uref = np.zeros((2, PREDICT_HORZ)) 
-        Uaux = np.zeros((2, PREDICT_HORZ))
+        Ubest = np.zeros((2,CONTROL_HORZ)) 
+        Uref = np.zeros((2, CONTROL_HORZ)) 
+        Uaux = np.zeros((2, CONTROL_HORZ))
 
         SinRob = {'x': 0, 'y': 0, 'theta': 0, 'v': 0, 'w': 0}
 
@@ -101,9 +98,9 @@ class NMPC_Controller():
         Um dos componentes para inicializar as variáveis
         do controlador.
         '''
-        for i in range(0, len(PREDICT_HORZ)):
-            self.Uref[1, i] = self.vrefA
-            self.Uref[2, i] = self.wrefA
+        for i in range(0, CONTROL_HORZ-1):
+            self.Uref[0, i] = self.vrefA
+            self.Uref[1, i] = self.wrefA
         
         return
 
@@ -113,6 +110,7 @@ class NMPC_Controller():
         Olhar no minuto 40
         '''
         tPx, tPY, tPTheta = calculate_mini_trajectory(trajectoty_input)
+        # print(f'calculate_trajactory: {tPx}\ntPY: {tPY}\ntPTheta: {tPTheta}')
         # tPx, tPY, tPTheta é um vetor com 10 posições
         return tPx, tPY, tPTheta
 
@@ -130,17 +128,19 @@ class NMPC_Controller():
         self.prediction_model['theta'] = Rst
         self.prediction_model['v'] = Rsv
         self.prediction_model['w'] = Rsw
-    
+
+        # print(f'update_prediction_model: {self.prediction_model}')
 
     def speed_saturation(self, Uref):
         '''
             Satura a velocidade.
         '''
-        new_output_ref = scale_for_saturation(Uref, WHEELS_DISTANCE, PREDICT_HORZ, V_MAX)
+        new_output_ref = scale_for_saturation(Uref, WHEELS_DISTANCE, CONTROL_HORZ, V_MAX)
+        # print(f'speed_saturation: {new_output_ref}')
         return new_output_ref
 
 
-    def calculate_cust_function(self, tPX, tPY, tPTheta) -> float:
+    def calculate_cust_function(self, Uref, tPX, tPY, tPTheta) -> float:
         # lembrar de alterar os campos: 
         #  x_ref_pos, y_ref_pos, Theta_ref
         cost_input = CostFunctionParams(
@@ -149,22 +149,25 @@ class NMPC_Controller():
             robot_theta = self.prediction_model['theta'] , 
             linear_v = self.prediction_model['v'],
             angular_v_w = self.prediction_model['w'],
-            velocities_vector = self.Uref, # Uref
-            x_ref_pos =  tPX,
-            y_ref_pos = tPY,
-            Theta_ref = tPTheta,
-            predict_horz = PREDICT_HORZ,
-            predict_horz_end = PREDICT_HORZ,
-            control_horz = PREDICT_HORZ, 
-            gain_xy_error = PREDICT_HORZ, 
-            gain_theta_error =PREDICT_HORZ ,
-            gain_delta_control = PREDICT_HORZ,
+            velocities_vector = Uref, # Uref
+            x_ref_pos =  tPX, # array x 10
+            y_ref_pos = tPY, # array x 10
+            Theta_ref = tPTheta, # array x 10
+            # predict_horz = PREDICT_HORZ,
+            predict_horz_end = PREDICT_HORZ_END,
+            control_horz = CONTROL_HORZ, 
+            gain_xy_error = GAIN_XY_ERROR, 
+            gain_theta_error = GAIN_THETA_ERROR,
+            gain_delta_control = GAIN_DELTA_ERROR,
         )
         
         return cost_function(cost_input) # self.actual_cost = cost_function(cost_input) 
 
 
     def start_optmizer(self):
+
+        Jsteps, Jgrad, Jgrad_prev = self.init_optmizer()
+
         self.init_controller_variables()
 
         self.vrefA, self.wrefA, self.thetarefA = reversed_kinematic(
@@ -188,6 +191,7 @@ class NMPC_Controller():
         )
 
         tPX, tPY, tPTheta = self.calculate_trajactory(trajectoty_input)
+        # print(f'\tTPX:{tPX}')
         # tPXa = tPX[1]
         # tPYa = tPY[1]
         # tPTa = tPTheta[1]
@@ -196,58 +200,61 @@ class NMPC_Controller():
             self.RstateX, self.RstateY, self.RstateTheta, self.RstateVelocity, self.RstateW)
 
         I = 0
-        Jsteps, Jgrad, Jgrad_prev = self.init_optmizer()
-
-        self.speed_saturation()
         
-        # Initial cost function value
-        # Jatual = COST_FUNCTION2(Sinbo.x, Sinbo.y, Sinbo.theta, Sinbo.v, ...
-        #     Sinbo.w, Uref, tPX, tPY, yPTheta, N1, N2, Nu, L1, L2, L3);
-        Jatual = self.calculate_cust_function(tPX, tPY, tPTheta)
-        Jbest = Jatual
 
-        while (I < MAX_ITERATIONS) and (self.actual_cost > self.eta):
+        self.Uref = self.speed_saturation(self.Uref)
+        # print(f'speed_saturation: {self.Uref}')
+        
+        '''Initial cost function value
+        Jatual = COST_FUNCTION2(Sinbo.x, Sinbo.y, Sinbo.theta, Sinbo.v, ...
+        Sinbo.w, Uref, tPX, tPY, yPTheta, N1, N2, Nu, L1, L2, L3);'''
+        
+        Jatual = self.calculate_cust_function(self.Uref, tPX, tPY, tPTheta)
+        Jbest = Jatual
+        # print(f'JBEST: {Jbest}\n')
+
+        while (I < MAX_ITERATIONS) and (Jatual > ETA):
 
             # Calcula os passos das entradas
-            Usteps = calculate_Usteps(self.Uref, PREDICT_HORZ, DELTA)
+            Usteps = calculate_Usteps(self.Uref, CONTROL_HORZ, DELTA)
 
             # Faz o cálculo de todos 'J' e 'U' para um horizonte de predição
             # de controle Nu
             '''
             ver a explicação dos 3 fors no tempo: 1:01:00
             '''
-            for k in range(0, PREDICT_HORZ):
-                for j in range(0,4): # Para percorrer os vetores J
+            for k in range(0, CONTROL_HORZ-1):
+                for j in range(0, 4): # Para percorrer os vetores J
                     # ATRIBUI AS VELOCIDADES PARA CADA PASSO DE 'U'
 
-                    for n in range(0, PREDICT_HORZ):
+                    for n in range(0, CONTROL_HORZ-1):
                         if n == k:
-                            Uaux[1, n+1] = Usteps[1, (j + 4*k)]
-                            Uaux[2, n+1] = Usteps[2, (j + 4*k)]
+                            self.Uaux[0, n] = Usteps[0, (j + 4*k)]
+                            self.Uaux[1, n] = Usteps[1, (j + 4*k)]
                         else:
-                            Uaux[1, n+1] = self.Uref[1, 1]
-                            Uaux[2, n+1] = self.Uref[2, 1]
+                            self.Uaux[0, n] = self.Uref[0, 0]
+                            self.Uaux[1, n] = self.Uref[1, 0]
                    
                     # REINICIA A POSIÇÃO INICIAL DO ROBÔ PARA CADA ITERAÇÃO
                     self.update_prediction_model(
                         self.RstateX, self.RstateY, self.RstateTheta, self.RstateVelocity, self.RstateW)
                     
                     # Wheels velocity saturation # Uref, d, Nu, Vmax
-                    Uaux = scale_for_saturation(Uaux, WHEELS_DISTANCE, PREDICT_HORZ, V_MAX)
+                    self.Uaux = scale_for_saturation(self.Uaux, WHEELS_DISTANCE, CONTROL_HORZ, V_MAX)
 
                     # CALCULA O 'J' DA ITERAÇÃO
                     # J = COST_FUNCTION2(Sinbo.x, Sinbo.y, Sinbo.theta, Sinbo.v, ...
                     # Sinbo.w, Uaux, tPX, tPY, yPTheta, N1, N2, Nu, L1, L2, L3)
-                    J = self.calculate_cust_function(tPX, tPY, tPTheta)
-                    Jsteps[j + 4*k, I] = J # Vetor de passos
+                    J = self.calculate_cust_function(self.Uaux, tPX, tPY, tPTheta)
+                    Jsteps[0, j + 4*k] = J # Vetor de passos
  
             '''Cálculo do gradiente de J baseado nos Jsteps'''
-            for h in range(0, PREDICT_HORZ):
-                Jgrad_prev[2*h+1, 1] = Jgrad[2*h+1, 1]
-                Jgrad[2*h+1, 1] = Jsteps[4*h+1, 1] - Jsteps[4*h+2, 1]
+            for h in range(0, PREDICT_HORZ-1):
+                Jgrad_prev[2*h+1, 0] = Jgrad[2*h+1, 0]
+                Jgrad[2*h+1, 0] = Jsteps[4*h+1, 0] - Jsteps[4*h+2, 0]
                 
-                Jgrad_prev[2*h+2, 1] = Jgrad[2*h+2, 1]
-                Jgrad[2*h+2, 1] = Jsteps[4*h+3, 1] - Jsteps[4*h+4, 1]
+                Jgrad_prev[2*h+2, 0] = Jgrad[2*h+2, 0]
+                Jgrad[2*h+2, 0] = Jsteps[4*h+3, 0] - Jsteps[4*h+4, 0]
 
             # COM OS GRADIENTES DE TODOS OS J CALCULADOS, INICIAMOS O CÁLCULO
             # DO GRADINETE CONJUGADO (achar o mínimo de J) - Polak & Bi
@@ -255,35 +262,35 @@ class NMPC_Controller():
             d1 = [0, 0]
             x1 = d1
 
-            for z in range(0, PREDICT_HORZ):# 0:1:Nu-1
-                d1[0] = Jgrad[2*z + 1, 1]
-                d1[1] = Jgrad[2*z + 2, 1]
+            for z in range(0, PREDICT_HORZ - 1):# 0:1:Nu-1
+                d1[0] = Jgrad[2*z + 1, 0]
+                d1[1] = Jgrad[2*z + 2, 0]
 
-                x1[0] = (Uref[1, z+1] - ALPHA*d1[0] )
-                x1[1] = (Uref[1, z+1] - ALPHA*d1[1] )
+                x1[0] = (self.Uref[0, z+1] - ALPHA*d1[0] )
+                x1[1] = (self.Uref[0, z+1] - ALPHA*d1[1] )
 
-                Jgrad_prev[2*z+1, 1] = Jgrad[2*z+1, 1]
-                Jgrad[2*z+1, 1] = Jsteps[4*z+1, 1] - Jsteps[4*z+2, 1]
+                Jgrad_prev[2*z+1, 0] = Jgrad[2*z+1, 0]
+                Jgrad[2*z+1, 0] = Jsteps[4*z+1, 0] - Jsteps[4*z+2, 0]
 
-                Jgrad_prev[2*z+2, 1] = Jgrad[2*z+2, 1]
-                Jgrad[2*z+2, 1] = Jsteps[4*z+3, 1] - Jsteps[4*z+4, 1]
+                Jgrad_prev[2*z+2, 0] = Jgrad[2*z+2, 0]
+                Jgrad[2*z+2, 0] = Jsteps[4*z+3, 0] - Jsteps[4*z+4, 0]
                 
                 beta = 0
 
-                if ( Jgrad[2*z+1, 1] >= self.eta ) or ( Jgrad[2*z+2, 1] >= self.eta ):
-                    t1 = Jgrad[2*z+1, 1] - Jgrad_prev[2*z+1, 1]
-                    t2 = Jgrad[2*z+2, 1] - Jgrad_prev(2*z+2, 1)
+                if ( Jgrad[2*z+1, 0] >= ETA ) or ( Jgrad[2*z+2, 0] >= ETA ):
+                    t1 = Jgrad[2*z+1, 0] - Jgrad_prev[2*z+1, 0]
+                    t2 = Jgrad[2*z+2, 0] - Jgrad_prev[2*z+2, 0]
 
-                    a1 = Jgrad(2*z+1, 1)*t1
-                    a2 = Jgrad(2*z+2, 1)*t2
+                    a1 = Jgrad[2*z+1, 0]*t1
+                    a2 = Jgrad[2*z+2, 0]*t2
 
-                    b1 =  Jgrad_prev[2*z+1, 1] - Jgrad_prev[2*z+1, 1] 
-                    b2 =  Jgrad_prev[2*z+2, 1] - Jgrad_prev[2*z+2, 1]
+                    b1 =  Jgrad_prev[2*z+1, 0] - Jgrad_prev[2*z+1, 0] 
+                    b2 =  Jgrad_prev[2*z+2, 0] - Jgrad_prev[2*z+2, 0]
 
                     beta = (a1+a2)/(b1+b2)
 
-                Uref[1, z+1] = x1[1] + ALPHA*(-Jgrad[2*z+1, 1]) + beta* Jgrad_prev[2*z+1, 1]
-                Uref[2, z+1] = x1[2] + ALPHA*(-Jgrad[2*z+2, 1]) + beta* Jgrad_prev[2*z+2, 1]
+                self.Uref[0, z+1] = x1[0] + ALPHA*(-Jgrad[2*z+1, 0]) + beta* Jgrad_prev[2*z+1, 0]
+                self.Uref[1, z+1] = x1[1] + ALPHA*(-Jgrad[2*z+2, 0]) + beta* Jgrad_prev[2*z+2, 0]
             
             '''
                 Reinicia a posição inicial do robô que será usada
@@ -304,26 +311,28 @@ class NMPC_Controller():
             SATURA A VELOCIDADE DAS RODAS QUE SERÃO USADAS NO 
             PRÓXIMO LOOP DE CONTROLE. scale_for_saturation(Uref, d, Nu, Vmax)
             '''
-            Uref = scale_for_saturation(Uref, WHEELS_DISTANCE, CONTROL_HORZ, V_MAX)
+            self.Uref = scale_for_saturation(self.Uref, WHEELS_DISTANCE, CONTROL_HORZ, V_MAX)
 
             ''' Recalcula o J atual usado no próximo loop de controle
             Jatual = COST_FUNCTION2(Sinbo.x, Sinbo.y, Sinbo.theta, Sinbo.v, ...
             Sinbo.w, Uref, tPX, tPY, yPTheta, N1, N2, Nu, L1, L2, L3) '''
 
-            Jatual = self.calculate_cust_function(tPX, tPY, tPTheta)
+            Jatual = self.calculate_cust_function(self.Uref, tPX, tPY, tPTheta)
 
             if Jatual < Jbest:
                 Jbest = Jatual
-                Ubest = Uref
+                self.Ubest = self.Uref
 
             I = I + 1
         
-        Vout_MPC = Ubest[1, 1]
-        Wout_MPC = Ubest[2, 1]
+        Vout_MPC = self.Ubest[0, 0]
+        Wout_MPC = self.Ubest[1, 0]
 
         '''
         A saída do controlador vai se tornar a velocidade 
         angular e linear de referência (self.vrefA, self.wrefA) 
         '''
+
+        # print(f'FINAL DO CONTROLE {Jbest}')
 
         return Vout_MPC, Wout_MPC

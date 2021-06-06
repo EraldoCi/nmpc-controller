@@ -1,6 +1,13 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
+'''
+Lembrar de dar um shift de -3.5 no eixo X
+e -3 no eixo Y.
+E diminuir a quantidade de pontos
+'''
+# array[start:stop:step]
+
 coordinates = np.array(
     ((0.98, 1.04, 1.1, 1.16, 1.22, 1.28, 1.34, 1.4, 1.46, 1.52, 1.58, 1.64, 1.7, 1.76
 , 1.82, 1.88, 1.94, 2.0, 2.06, 2.12, 2.18, 2.24, 2.3, 2.36, 2.42, 2.48, 2.54, 2.54
@@ -23,6 +30,14 @@ coordinates = np.array(
 
 new_coordinates = np.fliplr(coordinates)
 
-plt.plot(new_coordinates[0], new_coordinates[1])
-plt.show()
-print(len(new_coordinates[0]))
+ox = new_coordinates[0]
+ox = ox[0:-1:5]
+
+oy = new_coordinates[1]
+oy = oy[0:-1:5]
+
+new_coordinates = np.array((ox, oy))
+# plt.plot(new_coordinates[0], new_coordinates[1])
+# plt.plot(ox, oy)
+# plt.show()
+# print(len(new_coordinates[0]))

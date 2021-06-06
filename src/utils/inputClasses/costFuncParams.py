@@ -36,7 +36,7 @@ class CostFunctionParams(NamedTuple):
     y_ref_pos: float
     Theta_ref: float 
 
-    predict_horz: float
+    # predict_horz: float
     predict_horz_end: float
     control_horz: float 
 

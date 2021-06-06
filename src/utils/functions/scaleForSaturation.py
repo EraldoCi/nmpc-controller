@@ -1,14 +1,14 @@
 import numpy as np
 
-def scale_for_saturation(Uref, wheels_distance, predict_horz, Vmax):
+def scale_for_saturation(Uref, wheels_distance, control_horz, Vmax):
 
-    new_output_ref = np.zeros((2, predict_horz)) # matriz 2x2
+    new_output_ref = np.zeros((2, control_horz)) # matriz 2x2
     scalemax: float
     scalemin: float
 
-    for i in range(0, len(predict_horz)):
-        v = Uref[1,i] # velocidade linear
-        w = Uref[2,i] # velocidade angular
+    for i in range(0, control_horz-1):
+        v = Uref[0,i] # velocidade linear
+        w = Uref[1,i] # velocidade angular
     
         # Cinemática Inversa
         v1 = v + ((wheels_distance + w)/2)
@@ -37,7 +37,7 @@ def scale_for_saturation(Uref, wheels_distance, predict_horz, Vmax):
         vf = (v1a + v2a)/2
         wf = (v1a - v2a)/wheels_distance
 
-        new_output_ref[1, i] = vf
-        new_output_ref[2, i] = wf
+        new_output_ref[0, i] = vf
+        new_output_ref[1, i] = wf
     
     return new_output_ref

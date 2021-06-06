@@ -10,7 +10,11 @@ def reversed_kinematic (vx, vy, ax, ay):
     '''
     theta = math.atan2(vy, vx)
     v = math.sqrt(vx**2 + vy**2)
-    w = (vx*ay - vy*ax)/(vx**2 + vy**2)
+    try:
+        w = (vx*ay - vy*ax)/(vx**2 + vy**2)
+    except:
+        w = 0.0
+
 
     '''
     The v, w & theta must be the reference
