@@ -172,8 +172,8 @@ class NMPC_Controller():
 
     def start_optmizer(self):
         
-        # self.vrefA, self.wrefA, self.thetarefA = reversed_kinematic(
-        #     self.RstateVelocity, 0.0, self.RstateX, self.RstateY)
+        self.vrefA, self.wrefA, self.thetarefA = reversed_kinematic(
+            self.RstateVelocity, 0.0, self.RstateX, self.RstateY)
 
         Jsteps, Jgrad, Jgrad_prev = self.init_optmizer()
 
@@ -341,6 +341,6 @@ class NMPC_Controller():
         angular e linear de referência (self.vrefA, self.wrefA) 
         '''
 
-        print(f'FINAL DO CONTROLE {self.Ubest}\n VALOR DE ITERATOR: {I}')
+        print(f'FINAL DO CONTROLE {self.Ubest}')
 
         return Vout_MPC, Wout_MPC
