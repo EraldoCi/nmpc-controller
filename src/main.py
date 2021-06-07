@@ -29,6 +29,7 @@ class TurtleBot:
         self.y_position = 0.0
         self.theta = 0.0
         self.rate = rospy.Rate(1)
+        self.start_control_flag = 0
 
     def update_pose(self, data):
         """Callback function which is called when a new message of type Pose is
@@ -37,6 +38,7 @@ class TurtleBot:
         self.x_position = round(data.pose.pose.position.x, 4)
         self.y_position = round(data.pose.pose.position.y, 4)
         self.theta = round(data.pose.pose.orientation.z, 4)
+        self.start_control_flag = 1
         # rospy.loginfo(data)
 
 
@@ -52,28 +54,28 @@ class TurtleBot:
         # Angular velocity in the z-axis.
         vel_msg.angular.x = 0
         vel_msg.angular.y = 0
-        vel_msg.angular.z = -0.5
+        vel_msg.angular.z = 0.0
 
         # Starting point reference
-        x_ref = -1.5
-        y_ref = -2.0
+        x_ref = 5.0
+        y_ref = 5.0
 
         # Previous Reference
-        x_prev_ref = x_ref
-        y_prev_ref = y_ref
+        x_prev_ref = -3.5
+        y_prev_ref = -3.0
         theta_prev_ref = self.theta
-        vrefA = vel_msg.linear.x
-        wrefA = vel_msg.angular.z
+        vrefA = 0.0
+        wrefA = 0.0
 
         while not rospy.is_shutdown():
-            
+            # if self.start_control_flag:
             inputRef = ControllerInput(
                 xref = x_ref,
                 yref = y_ref,
                 RstateX = self.x_position,
                 RstateY = self.y_position,
                 RstateTheta = self.theta,
-                RstateVelocity = vel_msg.angular.x,
+                RstateVelocity = vel_msg.linear.x,
                 RstateW = vel_msg.angular.z,
                 xrefA = x_prev_ref,
                 yrefA = y_prev_ref,
@@ -82,6 +84,9 @@ class TurtleBot:
                 wrefA = wrefA
             )
             # print(inputRef)
+
+            # rospy.loginfo(f'REF_Previous:{x_prev_ref, y_prev_ref}')
+            # rospy.loginfo(f'ACTUAL: {self.x_position, self.y_position}')
 
             nmpc = NMPC_Controller(inputRef)
             # rospy.loginfo(nmpc.__str__())
@@ -92,17 +97,24 @@ class TurtleBot:
             new_v, new_w = nmpc.start_optmizer()
             # rospy.loginfo(new_v, new_w)
             print(new_v, new_w)
+            # rospy.loginfo(f'X: {self.x_position}, Y: {self.y_position}, THETA: {self.theta}')
+            
 
-            x_prev_ref = x_ref
-            y_prev_ref = y_ref
+            x_prev_ref = self.x_position
+            y_prev_ref = self.y_position
             theta_prev_ref = self.theta
             vrefA = vel_msg.linear.x
             wrefA = vel_msg.angular.z
-            
+
+            self.start_control_flag = 0
+
+            '''Update the linear & angular velocity'''
+            vel_msg.linear.x = new_v
+            vel_msg.angular.z = new_w
+
             '''
             Loggin
             '''
-            # rospy.loginfo(f'X: {self.x_position}, Y: {self.y_position}, THETA: {self.theta}')
             
             # Publish at the desired rate.
             self.rate.sleep()

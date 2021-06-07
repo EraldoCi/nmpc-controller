@@ -6,9 +6,9 @@ def scale_for_saturation(Uref, wheels_distance, control_horz, Vmax):
     scalemax: float
     scalemin: float
 
-    for i in range(0, control_horz-1):
-        v = Uref[0,i] # velocidade linear
-        w = Uref[1,i] # velocidade angular
+    for i in range(0, control_horz):
+        v = Uref[0, i] # velocidade linear
+        w = Uref[1, i] # velocidade angular
     
         # Cinemática Inversa
         v1 = v + ((wheels_distance + w)/2)
@@ -39,5 +39,7 @@ def scale_for_saturation(Uref, wheels_distance, control_horz, Vmax):
 
         new_output_ref[0, i] = vf
         new_output_ref[1, i] = wf
+
+    # print(f'{new_output_ref}')
     
     return new_output_ref

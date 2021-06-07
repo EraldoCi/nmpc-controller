@@ -1,5 +1,6 @@
 #! /usr/bin/env python
 import numpy as np
+import math
 
 from utils.inputClasses import ControllerInput, \
     CostFunctionParams, TrajectoryInput
@@ -13,7 +14,7 @@ WHEELS_DISTANCE = 0.23 # d
 PREDICT_HORZ = 1 # N1
 PREDICT_HORZ_END = 10 # N2
 CONTROL_HORZ = 2 # Nu
-GAIN_XY_ERROR = 1 # L1
+GAIN_XY_ERROR = 0.05 # L1
 GAIN_THETA_ERROR = 2.5 # L2
 GAIN_DELTA_ERROR = 0.85 # L3
 ETA = 0.1
@@ -55,7 +56,12 @@ class NMPC_Controller():
         self.Ubest, self.Uref, self.Uaux, self.prediction_model = self.init_predict_model()
 
     def __str__(self):# used for debuging
-        return f'X pose:{self.RstateX}, Y pose: {self.RstateY}'
+        return f'''
+            X pose:{self.RstateX}, 
+            Y pose: {self.RstateY},
+            V: {self.RstateVelocity}
+            
+            '''
 
 
     def init_optmizer(self):
@@ -165,13 +171,13 @@ class NMPC_Controller():
 
 
     def start_optmizer(self):
+        
+        # self.vrefA, self.wrefA, self.thetarefA = reversed_kinematic(
+        #     self.RstateVelocity, 0.0, self.RstateX, self.RstateY)
 
         Jsteps, Jgrad, Jgrad_prev = self.init_optmizer()
 
         self.init_controller_variables()
-
-        self.vrefA, self.wrefA, self.thetarefA = reversed_kinematic(
-            self.RstateVelocity, self.RstateVelocity, self.RstateX, self.RstateY)
 
         # Cálculo da trajatória de referência (mini trajetoria)
         # lTi, Rsx, Rsy,  Rst, xrefA, yrefA, tetarefA, ...
@@ -210,7 +216,7 @@ class NMPC_Controller():
         Sinbo.w, Uref, tPX, tPY, yPTheta, N1, N2, Nu, L1, L2, L3);'''
         
         Jatual = self.calculate_cust_function(self.Uref, tPX, tPY, tPTheta)
-        Jbest = Jatual
+        Jbest = Jatual + 5
         # print(f'JBEST: {Jbest}\n')
 
         while (I < MAX_ITERATIONS) and (Jatual > ETA):
@@ -223,11 +229,11 @@ class NMPC_Controller():
             '''
             ver a explicação dos 3 fors no tempo: 1:01:00
             '''
-            for k in range(0, CONTROL_HORZ-1):
+            for k in range(0, CONTROL_HORZ):
                 for j in range(0, 4): # Para percorrer os vetores J
                     # ATRIBUI AS VELOCIDADES PARA CADA PASSO DE 'U'
 
-                    for n in range(0, CONTROL_HORZ-1):
+                    for n in range(0, CONTROL_HORZ):
                         if n == k:
                             self.Uaux[0, n] = Usteps[0, (j + 4*k)]
                             self.Uaux[1, n] = Usteps[1, (j + 4*k)]
@@ -249,48 +255,49 @@ class NMPC_Controller():
                     Jsteps[0, j + 4*k] = J # Vetor de passos
  
             '''Cálculo do gradiente de J baseado nos Jsteps'''
-            for h in range(0, PREDICT_HORZ-1):
-                Jgrad_prev[2*h+1, 0] = Jgrad[2*h+1, 0]
-                Jgrad[2*h+1, 0] = Jsteps[4*h+1, 0] - Jsteps[4*h+2, 0]
+            for h in range(0, CONTROL_HORZ):
+                Jgrad_prev[0, 2*h] = Jgrad[0, 2*h+1] # 1x4
+                Jgrad[0, 2*h] = Jsteps[0, 4*h] - Jsteps[0, 4*h+1]
                 
-                Jgrad_prev[2*h+2, 0] = Jgrad[2*h+2, 0]
-                Jgrad[2*h+2, 0] = Jsteps[4*h+3, 0] - Jsteps[4*h+4, 0]
+                Jgrad_prev[0, 2*h + 1] = Jgrad[0, 2*h+1]
+                Jgrad[0, 2*h + 1] = Jsteps[0, 4*h+2] - Jsteps[0, 4*h+3]
 
             # COM OS GRADIENTES DE TODOS OS J CALCULADOS, INICIAMOS O CÁLCULO
             # DO GRADINETE CONJUGADO (achar o mínimo de J) - Polak & Bi
 
             d1 = [0, 0]
-            x1 = d1
+            x1 = [0, 0]
 
-            for z in range(0, PREDICT_HORZ - 1):# 0:1:Nu-1
-                d1[0] = Jgrad[2*z + 1, 0]
-                d1[1] = Jgrad[2*z + 2, 0]
+            for z in range(0, CONTROL_HORZ):# 0:1:Nu-1
+                d1[0] = Jgrad[0, 2*z]
+                d1[1] = Jgrad[0, 2*z + 1]
 
-                x1[0] = (self.Uref[0, z+1] - ALPHA*d1[0] )
-                x1[1] = (self.Uref[0, z+1] - ALPHA*d1[1] )
+                x1[0] = (self.Uref[0, z] - ALPHA*d1[0] )
+                x1[1] = (self.Uref[0, z] - ALPHA*d1[1] )
 
-                Jgrad_prev[2*z+1, 0] = Jgrad[2*z+1, 0]
-                Jgrad[2*z+1, 0] = Jsteps[4*z+1, 0] - Jsteps[4*z+2, 0]
+                Jgrad_prev[0, 2*z+1] = Jgrad[0, 2*z+1]
+                Jgrad[0, 2*z+1] = Jsteps[0, 4*z+1] - Jsteps[0, 4*z+2]
 
-                Jgrad_prev[2*z+2, 0] = Jgrad[2*z+2, 0]
-                Jgrad[2*z+2, 0] = Jsteps[4*z+3, 0] - Jsteps[4*z+4, 0]
+                Jgrad_prev[0, 2*z+1] = Jgrad[0, 2*z+1]
+                Jgrad[0, 2*z+1] = Jsteps[0, 4*z+2] - Jsteps[0, 4*z+3]
                 
                 beta = 0
 
-                if ( Jgrad[2*z+1, 0] >= ETA ) or ( Jgrad[2*z+2, 0] >= ETA ):
-                    t1 = Jgrad[2*z+1, 0] - Jgrad_prev[2*z+1, 0]
-                    t2 = Jgrad[2*z+2, 0] - Jgrad_prev[2*z+2, 0]
+                if ( Jgrad[0, 2*z+1] >= ETA ) or ( Jgrad[0, 2*z+1] >= ETA ):
+                    t1 = Jgrad[0, 2*z] - Jgrad_prev[0, 2*z]
+                    t2 = Jgrad[0, 2*z+1] - Jgrad_prev[0, 2*z+1]
 
-                    a1 = Jgrad[2*z+1, 0]*t1
-                    a2 = Jgrad[2*z+2, 0]*t2
+                    a1 = Jgrad[0, 2*z]*t1
+                    a2 = Jgrad[0, 2*z+1]*t2
 
-                    b1 =  Jgrad_prev[2*z+1, 0] - Jgrad_prev[2*z+1, 0] 
-                    b2 =  Jgrad_prev[2*z+2, 0] - Jgrad_prev[2*z+2, 0]
-
+                    b1 =  Jgrad_prev[0, 2*z]**2 
+                    b2 =  Jgrad_prev[0, 2*z+1]**2
+                  
                     beta = (a1+a2)/(b1+b2)
 
-                self.Uref[0, z+1] = x1[0] + ALPHA*(-Jgrad[2*z+1, 0]) + beta* Jgrad_prev[2*z+1, 0]
-                self.Uref[1, z+1] = x1[1] + ALPHA*(-Jgrad[2*z+2, 0]) + beta* Jgrad_prev[2*z+2, 0]
+
+                self.Uref[0, z] = x1[0] + ALPHA*(-Jgrad[0, 2*z]) + beta* Jgrad_prev[0, 2*z]
+                self.Uref[1, z] = x1[1] + ALPHA*(-Jgrad[0, 2*z+1]) + beta* Jgrad_prev[0, 2*z+1]
             
             '''
                 Reinicia a posição inicial do robô que será usada
@@ -324,6 +331,7 @@ class NMPC_Controller():
                 self.Ubest = self.Uref
 
             I = I + 1
+            # print(f'J_ATUAL = {Jatual}')
         
         Vout_MPC = self.Ubest[0, 0]
         Wout_MPC = self.Ubest[1, 0]
@@ -333,6 +341,6 @@ class NMPC_Controller():
         angular e linear de referência (self.vrefA, self.wrefA) 
         '''
 
-        # print(f'FINAL DO CONTROLE {Jbest}')
+        print(f'FINAL DO CONTROLE {self.Ubest}\n VALOR DE ITERATOR: {I}')
 
         return Vout_MPC, Wout_MPC

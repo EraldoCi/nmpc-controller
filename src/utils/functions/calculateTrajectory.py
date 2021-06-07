@@ -33,9 +33,9 @@ def calculate_mini_trajectory( input_params: TrajectoryInput):
     deltaW = W*0.04
     dTotal = 0
 
-    trajPX= np.zeros(N2)
-    trajPY= np.zeros(N2)
-    trajPTeta= np.zeros(N2)
+    trajPX = np.zeros(N2)
+    trajPY = np.zeros(N2)
+    trajPTeta = np.zeros(N2)
 
     #angle of current segment to world
     teta = np.arctan2(trajYp-trajY, trajXp-trajX)
@@ -85,7 +85,7 @@ def calculate_mini_trajectory( input_params: TrajectoryInput):
                 dSegments = dSegments + segmentSize
 
     #handle teta references
-    for i in range(0, N2-1): # ab=1:1:N2
+    for i in range(0, N2): # ab=1:1:N2
         if trajPTeta[i] > PI:
             trajPTeta[i] = trajPTeta[i] - 2*PI
 

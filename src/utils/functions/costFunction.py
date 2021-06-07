@@ -26,10 +26,11 @@ def cost_function (values: CostFunctionParams) -> float:
     work_time = 0.04 # tempo(s) de trabalho
 
 	# Prediction horizon
-    for i in range (0, predict_horz_end-1):
-        if i <= control_horz-1: # Nu
-                v = velocities_vector[0, i] # U(1, i)
-                w = velocities_vector[1, i]
+    v = 0.0
+    for i in range (0, predict_horz_end):
+        if i < control_horz: # Nu
+            v = velocities_vector[0, i] # U(1, i)
+            w = velocities_vector[1, i]
         else:
             v = velocities_vector[0, control_horz-1]
             w = velocities_vector[1, control_horz-1]
