@@ -36,12 +36,12 @@
     <remap from="scan" to="/scan"/>
   </node>
 
-  <node 
+  <!-- <node 
     pkg="robotic_part2" 
     name="NMPC_Robot" 
     type="main.py" 
     output="screen"
-  />
+  /> -->
 
   <node pkg="rqt_graph" name="rqt_graph" type="rqt_graph"/>
 

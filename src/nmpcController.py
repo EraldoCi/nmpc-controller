@@ -104,11 +104,29 @@ class NMPC_Controller():
         Um dos componentes para inicializar as variáveis
         do controlador.
         '''
-        for i in range(0, CONTROL_HORZ-1):
+        for i in range(0, CONTROL_HORZ):
             self.Uref[0, i] = self.vrefA
             self.Uref[1, i] = self.wrefA
         
         return
+
+
+    def test_create_mini_path(self):
+        trajectoty_input = TrajectoryInput(
+            Rx = self.RstateX,
+            Ry = self.RstateY,
+            Rt = self.RstateTheta,
+            trajX = self.xrefA,
+            trajY = self.yrefA,
+            trajTeta = self.thetarefA,
+            V = self.vrefA,
+            W = self.wrefA,
+            N2 = PREDICT_HORZ_END,
+            trajXp = self.xref,
+            trajYp = self.yref,
+        )
+        tPx, tPY, tPTheta = calculate_mini_trajectory(trajectoty_input)
+        return tPx, tPY, tPTheta
 
 
     def calculate_trajactory(self, trajectoty_input: TrajectoryInput):
@@ -138,9 +156,6 @@ class NMPC_Controller():
         # print(f'update_prediction_model: {self.prediction_model}')
 
     def speed_saturation(self, Uref):
-        '''
-            Satura a velocidade.
-        '''
         new_output_ref = scale_for_saturation(Uref, WHEELS_DISTANCE, CONTROL_HORZ, V_MAX)
         # print(f'speed_saturation: {new_output_ref}')
         return new_output_ref
@@ -252,7 +267,7 @@ class NMPC_Controller():
                     # J = COST_FUNCTION2(Sinbo.x, Sinbo.y, Sinbo.theta, Sinbo.v, ...
                     # Sinbo.w, Uaux, tPX, tPY, yPTheta, N1, N2, Nu, L1, L2, L3)
                     J = self.calculate_cust_function(self.Uaux, tPX, tPY, tPTheta)
-                    Jsteps[0, j + 4*k] = J # Vetor de passos
+                    Jsteps[0, j] = J # Vetor de passos
  
             '''Cálculo do gradiente de J baseado nos Jsteps'''
             for h in range(0, CONTROL_HORZ):
@@ -341,6 +356,6 @@ class NMPC_Controller():
         angular e linear de referência (self.vrefA, self.wrefA) 
         '''
 
-        print(f'FINAL DO CONTROLE {self.Ubest}')
+        # print(f'FINAL DO CONTROLE {self.Ubest}')
 
         return Vout_MPC, Wout_MPC

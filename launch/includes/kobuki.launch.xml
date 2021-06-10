@@ -8,7 +8,7 @@
 
   <!-- Gazebo model spawner -->
   <node name="spawn_turtlebot_model" pkg="gazebo_ros" type="spawn_model"
-        args="-x -3.5 -y -3.0 -Y 0.0 -unpause -urdf -param robot_description -model mobile_base"/>
+        args="-x 0.0 -y 0.0 -Y 0.0 -unpause -urdf -param robot_description -model mobile_base"/>
         <!-- args="$(optenv ROBOT_INITIAL_POSE) -unpause -urdf -param robot_description -model mobile_base"/> -->
 
   <!-- Velocity muxer -->

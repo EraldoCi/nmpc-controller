@@ -23,9 +23,9 @@ def reversed_kinematic (vx, vy, ax, ay):
         w = 0.0
         print(f'Exception is:{e}\n W VALUE IS: {w}')
 
-    if math.isnan:
-        # print(f'WWWWWWWWWWWWWWWW: {w}')
-        w = 0.0
+    # if math.isnan:
+    #     print(f'WWWWWWWWWWWWWWWW: {w}')
+    #     w = 0.0
 
     # print(f'''
     #     reversed_kinematic V: {v}

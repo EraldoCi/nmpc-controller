@@ -25,12 +25,13 @@ trajYp: Y reference position.
 
 def calculate_mini_trajectory( input_params: TrajectoryInput):
     SRx, SRy, SRt, trajX, trajY, trajTeta, V, W, N2, trajXp, trajYp = input_params
+    
+    print(trajXp, trajYp)
 
     iteration = 0
     N = 2001
-    i = 1
-    deltaD = V*0.04 # 0.1 para Pioneer e 0.04 para Turtlebot
-    deltaW = W*0.04
+    deltaD = V*0.4 # 0.1 para Pioneer e 0.04 para Turtlebot
+    deltaW = W*0.4
     dTotal = 0
 
     trajPX = np.zeros(N2)
@@ -52,12 +53,12 @@ def calculate_mini_trajectory( input_params: TrajectoryInput):
     dSegments = segmentSize - dl
         
     #initial point of predictive controller trajectory
-    trajPX[i] = trajX + dl*math.cos(teta)
-    trajPY[i] = trajY + dl*math.sin(teta)
-    trajPTeta[i] = trajTeta
+    trajPX[0] = trajX + dl*math.cos(teta)
+    trajPY[0] = trajY + dl*math.sin(teta)
+    trajPTeta[0] = trajTeta
 
     #build new trajectory
-    for j in range(2, N2): # j=2:1:N2+1
+    for j in range(1, N2): # j=2:1:N2+1
         #reached the end of the trajectory
         if iteration >= N-1 :
             trajPX[j] = trajX
@@ -88,5 +89,7 @@ def calculate_mini_trajectory( input_params: TrajectoryInput):
     for i in range(0, N2): # ab=1:1:N2
         if trajPTeta[i] > PI:
             trajPTeta[i] = trajPTeta[i] - 2*PI
+
+    # print(f'X TRAJECTORY: {trajPX}\nY TRAJECTORY: {trajPY}')
 
     return trajPX, trajPY, trajPTeta

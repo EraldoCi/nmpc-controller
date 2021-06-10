@@ -45,8 +45,8 @@ def cost_function (values: CostFunctionParams) -> float:
                 robot_theta = robot_theta - 2*PI
 
             robot_theta = robot_theta + work_time*w
-            robot_theta = x_position + work_time*(v*c_theta)
-            robot_theta = y_position + work_time*(v*s_theta)
+            x_position = x_position + work_time*(v*c_theta)
+            y_position = y_position + work_time*(v*s_theta)
 	
 	# Valor da função custo para cada horizonte de predição
         sum_x += (x_ref_pos[i] - x_position)**2 
