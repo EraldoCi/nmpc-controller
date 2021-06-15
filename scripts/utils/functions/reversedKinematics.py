@@ -21,7 +21,7 @@ def reversed_kinematic (vx, vy, ax, ay):
         w = float((vx*ay - vy*ax)/(vx**2 + vy**2))
     except Exception as e:
         w = 0.0
-        print(f'Exception is:{e}\n W VALUE IS: {w}')
+        # print(f'Exception is:{e}\n W VALUE IS: {w}')
 
     # if math.isnan:
     #     print(f'WWWWWWWWWWWWWWWW: {w}')

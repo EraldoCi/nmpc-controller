@@ -26,7 +26,7 @@ trajYp: Y reference position.
 def calculate_mini_trajectory( input_params: TrajectoryInput):
     SRx, SRy, SRt, trajX, trajY, trajTeta, V, W, N2, trajXp, trajYp = input_params
     
-    print(trajXp, trajYp)
+    # print(trajXp, trajYp)
 
     iteration = 0
     N = 2001
@@ -71,7 +71,8 @@ def calculate_mini_trajectory( input_params: TrajectoryInput):
             trajPTeta[j] = trajPTeta[j-1] + deltaW
                 
             dTotal = dTotal + deltaD
-                
+            trajPTeta[j] = math.atan2(trajPY[j], trajPX[j])
+
             #change segment of the main trajectory that's being tracked
             if dTotal >= dSegments :
                 iteration += 1
@@ -83,6 +84,10 @@ def calculate_mini_trajectory( input_params: TrajectoryInput):
                 trajPY[j] = trajY + (dTotal-dSegments)*math.sin(teta)
                 trajPTeta[j] = trajTeta
                 
+                # calculates 
+                trajPTeta[j] = math.atan2(trajPY[j], trajPX[j])
+
+
                 dSegments = dSegments + segmentSize
 
     #handle teta references

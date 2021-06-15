@@ -187,16 +187,14 @@ class NMPC_Controller():
 
     def start_optmizer(self):
         
-        self.vrefA, self.wrefA, self.thetarefA = reversed_kinematic(
-            self.RstateVelocity, 0.0, self.RstateX, self.RstateY)
+        # self.vrefA, self.wrefA, self.thetarefA = reversed_kinematic(
+        #     self.RstateVelocity, 0.0, self.RstateX, self.RstateY)
 
         Jsteps, Jgrad, Jgrad_prev = self.init_optmizer()
 
         self.init_controller_variables()
 
         # Cálculo da trajatória de referência (mini trajetoria)
-        # lTi, Rsx, Rsy,  Rst, xrefA, yrefA, tetarefA, ...
-		#vrefA, wrefA, N2, xref, yref
         trajectoty_input = TrajectoryInput(
             Rx = self.RstateX,
             Ry = self.RstateY,
